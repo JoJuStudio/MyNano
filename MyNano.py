@@ -45,11 +45,14 @@ def save_file_dialog(stdscr, filename):
     max_len = w - len(prompt) - 1
     
     curses.echo()
+    stdscr.timeout(-1)  # wait for user input
     try:
         new_filename = stdscr.getstr(h-2, len(prompt), max_len).decode("utf-8").strip()
     except curses.error:
         new_filename = ""
-    curses.noecho()
+    finally:
+        curses.noecho()
+        stdscr.timeout(100)  # restore non-blocking behavior
 
     return new_filename or filename
 
@@ -64,13 +67,16 @@ def open_file_dialog(stdscr):
     max_len = w - len(prompt) - 1
 
     curses.echo()
+    stdscr.timeout(-1)  # wait for user input
     try:
         new_filename = (
             stdscr.getstr(h-2, len(prompt), max_len).decode("utf-8").strip()
         )
     except curses.error:
         new_filename = ""
-    curses.noecho()
+    finally:
+        curses.noecho()
+        stdscr.timeout(100)  # restore non-blocking behavior
 
     return new_filename or None
 
