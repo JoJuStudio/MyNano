@@ -292,7 +292,9 @@ def main(stdscr, filename=None):
             if line_num < len(buffer):
                 line = buffer[line_num]
                 prefix = f"{line_num + 1:{prefix_width-1}d} " if line_numbers else ""
-                stdscr.addstr(i + 1, 0, (prefix + line)[: w - 1])
+                # Curses cannot print embedded null characters, so replace them
+                safe_line = line.replace("\x00", "\u2400")
+                stdscr.addstr(i + 1, 0, (prefix + safe_line)[: w - 1])
         
         # Update cursor position
         try:
