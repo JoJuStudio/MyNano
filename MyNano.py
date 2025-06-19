@@ -4,6 +4,14 @@ import time
 import os
 import glob
 
+
+def init_colors():
+    """Initialize color pairs for directory and executable highlighting."""
+    curses.start_color()
+    curses.use_default_colors()
+    curses.init_pair(1, curses.COLOR_BLUE, -1)  # directories
+    curses.init_pair(2, curses.COLOR_GREEN, -1)  # executables
+
 def draw_title_bar(stdscr, filename, dirty, cursor_y, cursor_x):
     """Draws the top title bar with time, filename, and cursor position."""
     h, w = stdscr.getmaxyx()
@@ -69,7 +77,7 @@ def open_file_dialog(stdscr):
     prompt = "Open file: "
     max_len = w - len(prompt) - 1
     path = ""
-    suggestion = ""
+    suggestions = []
 
     curses.curs_set(1)
     stdscr.timeout(-1)  # wait for user input
@@ -79,8 +87,24 @@ def open_file_dialog(stdscr):
         stdscr.clrtoeol()
 
         # display suggestions on the status line above
-        if suggestion:
-            stdscr.addstr(h-3, 0, suggestion[: w - 1])
+        if suggestions:
+            stdscr.move(h-3, 0)
+            stdscr.clrtoeol()
+            x = 0
+            for s in suggestions[:5]:
+                name = os.path.basename(s)
+                attr = curses.A_NORMAL
+                if os.path.isdir(s):
+                    name += "/"
+                    attr = curses.color_pair(1) | curses.A_BOLD
+                elif os.access(s, os.X_OK):
+                    attr = curses.color_pair(2)
+                if x + len(name) >= w - 1:
+                    break
+                stdscr.addstr(h-3, x, name, attr)
+                x += len(name) + 1
+            if len(suggestions) > 5 and x < w - 4:
+                stdscr.addstr(h-3, x, "...")
         else:
             stdscr.move(h-3, 0)
             stdscr.clrtoeol()
@@ -99,19 +123,13 @@ def open_file_dialog(stdscr):
                 if os.path.isdir(comp):
                     comp += "/"
                 path = comp
-                suggestion = ""
+                suggestions = []
             elif len(matches) > 1:
                 prefix = os.path.commonprefix(matches)
                 path = prefix
-                display = [
-                    os.path.basename(m) + ("/" if os.path.isdir(m) else "")
-                    for m in matches[:5]
-                ]
-                suggestion = "  ".join(display)
-                if len(matches) > 5:
-                    suggestion += " ..."
+                suggestions = matches
             else:
-                suggestion = ""
+                suggestions = []
         elif isinstance(ch, str) and ch.isprintable():
             if len(path) < max_len:
                 path += ch
@@ -223,7 +241,7 @@ def main(stdscr, filename=None):
     """Main editor loop."""
     curses.curs_set(1)
     stdscr.clear()
-    curses.use_default_colors()
+    init_colors()
     stdscr.timeout(100)
 
     buffer = [""]
