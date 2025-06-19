@@ -86,25 +86,41 @@ def open_file_dialog(stdscr):
         stdscr.addstr(h-2, len(prompt), path[:max_len])
         stdscr.clrtoeol()
 
-        # display suggestions above the input line using multiple lines
+        # display suggestions above the input line using a small grid
         if suggestions:
-            max_lines = h - 3  # use available lines above the prompt
-            lines_to_show = min(len(suggestions), max_lines)
+            max_lines = min(5, h - 3)
 
-            start_line = h - 2 - lines_to_show
-            for ln in range(start_line, h-2):
-                stdscr.move(ln, 0)
-                stdscr.clrtoeol()
-
-            for idx, s in enumerate(suggestions[:lines_to_show]):
-                name = os.path.basename(s)
-                attr = curses.A_NORMAL
+            # Prepare names and compute column width
+            names = []
+            for s in suggestions:
+                n = os.path.basename(s)
                 if os.path.isdir(s):
-                    name += "/"
-                    attr = curses.color_pair(1) | curses.A_BOLD
-                elif os.access(s, os.X_OK):
-                    attr = curses.color_pair(2)
-                stdscr.addstr(start_line + idx, 0, name[: w - 1], attr)
+                    n += "/"
+                names.append(n)
+
+            if names:
+                col_width = min(max(len(n) for n in names) + 2, w)
+                cols = max(1, w // col_width)
+                rows = min(max_lines, (len(names) + cols - 1) // cols)
+
+                start_line = h - 2 - rows
+                for ln in range(start_line, h-2):
+                    stdscr.move(ln, 0)
+                    stdscr.clrtoeol()
+
+                for i, s in enumerate(suggestions[: rows * cols]):
+                    name = os.path.basename(s)
+                    attr = curses.A_NORMAL
+                    if os.path.isdir(s):
+                        name += "/"
+                        attr = curses.color_pair(1) | curses.A_BOLD
+                    elif os.access(s, os.X_OK):
+                        attr = curses.color_pair(2)
+                    row = i % rows
+                    col = i // rows
+                    x = col * col_width
+                    if x < w:
+                        stdscr.addstr(start_line + row, x, name[: col_width - 1], attr)
         else:
             stdscr.move(h-3, 0)
             stdscr.clrtoeol()
