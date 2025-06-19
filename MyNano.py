@@ -164,7 +164,7 @@ def show_help(stdscr):
         "MyNano - Key Bindings",
         "",
         "Ctrl+X  Exit",
-        "Ctrl+Shift+S  Save",
+        "Ctrl+S  Save",
         "Ctrl+O  Open",
         "Ctrl+V  Paste",
         "Ctrl+G  Help",
@@ -267,7 +267,7 @@ def main(stdscr, filename=None):
     dirty = False
     line_numbers = False
     status_message = (
-        "Ctrl+X: Exit | Ctrl+Shift+S: Save | Ctrl+O: Open | "
+        "Ctrl+X: Exit | Ctrl+S: Save | Ctrl+O: Open | "
         "Ctrl+V: Paste | Ctrl+G: Help"
     )
 
@@ -337,7 +337,7 @@ def main(stdscr, filename=None):
             else:
                 continue
 
-        if key == 19:  # Ctrl+Shift+S (Save)
+        if key == 19:  # Ctrl+S (Save)
             if filename:
                 try:
                     save_file(filename, buffer)
