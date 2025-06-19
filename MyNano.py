@@ -86,12 +86,17 @@ def open_file_dialog(stdscr):
         stdscr.addstr(h-2, len(prompt), path[:max_len])
         stdscr.clrtoeol()
 
-        # display suggestions on the status line above
+        # display suggestions above the input line using multiple lines
         if suggestions:
-            stdscr.move(h-3, 0)
-            stdscr.clrtoeol()
-            x = 0
-            for s in suggestions[:5]:
+            max_lines = h - 3  # use available lines above the prompt
+            lines_to_show = min(len(suggestions), max_lines)
+
+            start_line = h - 2 - lines_to_show
+            for ln in range(start_line, h-2):
+                stdscr.move(ln, 0)
+                stdscr.clrtoeol()
+
+            for idx, s in enumerate(suggestions[:lines_to_show]):
                 name = os.path.basename(s)
                 attr = curses.A_NORMAL
                 if os.path.isdir(s):
@@ -99,12 +104,7 @@ def open_file_dialog(stdscr):
                     attr = curses.color_pair(1) | curses.A_BOLD
                 elif os.access(s, os.X_OK):
                     attr = curses.color_pair(2)
-                if x + len(name) >= w - 1:
-                    break
-                stdscr.addstr(h-3, x, name, attr)
-                x += len(name) + 1
-            if len(suggestions) > 5 and x < w - 4:
-                stdscr.addstr(h-3, x, "...")
+                stdscr.addstr(start_line + idx, 0, name[: w - 1], attr)
         else:
             stdscr.move(h-3, 0)
             stdscr.clrtoeol()
