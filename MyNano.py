@@ -53,14 +53,35 @@ def save_file_dialog(stdscr, filename):
 
     return new_filename or filename
 
+def open_file_dialog(stdscr):
+    """Opens a dialog at the bottom for entering a filename to open."""
+    h, w = stdscr.getmaxyx()
+    if h < 3:
+        return None
+
+    prompt = "Open file: "
+    stdscr.addstr(h-2, 0, prompt)
+    max_len = w - len(prompt) - 1
+
+    curses.echo()
+    try:
+        new_filename = (
+            stdscr.getstr(h-2, len(prompt), max_len).decode("utf-8").strip()
+        )
+    except curses.error:
+        new_filename = ""
+    curses.noecho()
+
+    return new_filename or None
+
 def show_help(stdscr):
     """Display a simple help window with key bindings."""
     help_lines = [
         "MyNano - Key Bindings",
         "",
         "Ctrl+X  Exit",
-        "Ctrl+S  Save",
-        "Ctrl+O  Save As",
+        "Ctrl+Shift+S  Save",
+        "Ctrl+O  Open",
         "Ctrl+V  Paste",
         "Ctrl+G  Help",
         "Ctrl+L  Toggle line numbers",
@@ -119,7 +140,10 @@ def main(stdscr, filename=None):
     dirty = False
     exit_confirm = False
     line_numbers = False
-    status_message = "Ctrl+X: Exit | Ctrl+S: Save | Ctrl+O: Save As | Ctrl+V: Paste | Ctrl+G: Help"
+    status_message = (
+        "Ctrl+X: Exit | Ctrl+Shift+S: Save | Ctrl+O: Open | "
+        "Ctrl+V: Paste | Ctrl+G: Help"
+    )
 
     if filename:
         try:
@@ -185,7 +209,7 @@ def main(stdscr, filename=None):
                 break
         exit_confirm = False
 
-        if key == 19:  # Ctrl+S (Save)
+        if key == 19:  # Ctrl+Shift+S (Save)
             if filename:
                 try:
                     save_file(filename, buffer)
@@ -196,16 +220,19 @@ def main(stdscr, filename=None):
             else:
                 key = 15  # fall through to save as
 
-        elif key == 15:  # Ctrl+O (Save As)
-            new_filename = save_file_dialog(stdscr, filename)
+        elif key == 15:  # Ctrl+O (Open)
+            new_filename = open_file_dialog(stdscr)
             if new_filename:
                 try:
-                    save_file(new_filename, buffer)
+                    with open(new_filename, "r") as f:
+                        buffer = f.read().splitlines() or [""]
                     filename = new_filename
                     dirty = False
-                    status_message = f"Saved: {filename}"
+                    status_message = f"Opened: {filename}"
+                except FileNotFoundError:
+                    status_message = "File not found."
                 except Exception as e:
-                    status_message = f"Save failed: {str(e)}"
+                    status_message = f"Open failed: {str(e)}"
         elif key in (curses.KEY_BACKSPACE, 127, 8):  # Backspace
             if cursor_x > 0:
                 buffer[cursor_y] = buffer[cursor_y][:cursor_x-1] + buffer[cursor_y][cursor_x:]
