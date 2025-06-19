@@ -1,6 +1,8 @@
 import curses
 import sys
 import time
+import os
+import glob
 
 def draw_title_bar(stdscr, filename, dirty, cursor_y, cursor_x):
     """Draws the top title bar with time, filename, and cursor position."""
@@ -57,28 +59,70 @@ def save_file_dialog(stdscr, filename):
     return new_filename or filename
 
 def open_file_dialog(stdscr):
-    """Opens a dialog at the bottom for entering a filename to open."""
+    """Opens a dialog at the bottom for entering a filename to open.
+
+    Supports basic tab auto-completion using the filesystem."""
     h, w = stdscr.getmaxyx()
     if h < 3:
         return None
 
     prompt = "Open file: "
-    stdscr.addstr(h-2, 0, prompt)
     max_len = w - len(prompt) - 1
+    path = ""
+    suggestion = ""
 
-    curses.echo()
+    curses.curs_set(1)
     stdscr.timeout(-1)  # wait for user input
-    try:
-        new_filename = (
-            stdscr.getstr(h-2, len(prompt), max_len).decode("utf-8").strip()
-        )
-    except curses.error:
-        new_filename = ""
-    finally:
-        curses.noecho()
-        stdscr.timeout(100)  # restore non-blocking behavior
+    while True:
+        stdscr.addstr(h-2, 0, prompt)
+        stdscr.addstr(h-2, len(prompt), path[:max_len])
+        stdscr.clrtoeol()
 
-    return new_filename or None
+        # display suggestions on the status line above
+        if suggestion:
+            stdscr.addstr(h-3, 0, suggestion[: w - 1])
+        else:
+            stdscr.move(h-3, 0)
+            stdscr.clrtoeol()
+
+        stdscr.refresh()
+        ch = stdscr.get_wch()
+
+        if ch in ("\n", "\r"):
+            break
+        elif ch in (curses.KEY_BACKSPACE, "\b", "\x7f"):
+            path = path[:-1]
+        elif ch == "\t":
+            matches = glob.glob(path + "*")
+            if len(matches) == 1:
+                comp = matches[0]
+                if os.path.isdir(comp):
+                    comp += "/"
+                path = comp
+                suggestion = ""
+            elif len(matches) > 1:
+                prefix = os.path.commonprefix(matches)
+                path = prefix
+                display = [
+                    os.path.basename(m) + ("/" if os.path.isdir(m) else "")
+                    for m in matches[:5]
+                ]
+                suggestion = "  ".join(display)
+                if len(matches) > 5:
+                    suggestion += " ..."
+            else:
+                suggestion = ""
+        elif isinstance(ch, str) and ch.isprintable():
+            if len(path) < max_len:
+                path += ch
+        elif ch == 27:  # ESC cancels
+            path = ""
+            break
+
+    stdscr.move(h-3, 0)
+    stdscr.clrtoeol()
+    stdscr.timeout(100)
+    return path.strip() or None
 
 def show_help(stdscr):
     """Display a simple help window with key bindings."""
