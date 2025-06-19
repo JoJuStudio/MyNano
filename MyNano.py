@@ -394,22 +394,27 @@ def main(stdscr, filename=None):
         elif key == 12:  # Ctrl+L (Toggle line numbers)
             line_numbers = not line_numbers
         elif key == 22:  # Ctrl+V (Paste)
-            # Fast paste implementation
+            # Improved paste implementation
             curses.cbreak()
             curses.raw()
-            stdscr.nodelay(True)
+            stdscr.timeout(20)  # allow small delay for paste streaming
             curses.flushinp()
-            
+
             pasted = []
+            last_input = time.time()
             try:
                 stdscr.addstr(h-2, 0, "Pasting... (ESC to cancel)")
                 stdscr.clrtoeol()
                 stdscr.refresh()
-                
+
                 while True:
                     k = stdscr.getch()
                     if k == -1:
-                        break
+                        if time.time() - last_input > 0.1:
+                            break
+                        else:
+                            continue
+                    last_input = time.time()
                     if k == 27:  # ESC
                         pasted = []
                         break
@@ -417,14 +422,14 @@ def main(stdscr, filename=None):
                         pasted.append(chr(k))
                     except ValueError:
                         pass
-                    
+
                     # Update progress every 200 chars
                     if len(pasted) % 200 == 0:
                         stdscr.addstr(h-2, 0, f"Pasting... {len(pasted)} chars")
                         stdscr.clrtoeol()
                         stdscr.refresh()
             finally:
-                stdscr.nodelay(False)
+                stdscr.timeout(100)
                 curses.noraw()
                 curses.nocbreak()
             
