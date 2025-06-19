@@ -176,6 +176,49 @@ def save_file(filename, buffer):
     with open(filename, 'w') as f:
         f.write('\n'.join(buffer))
 
+def confirm_exit(stdscr, filename, buffer, dirty):
+    """Prompt the user about saving changes before exiting.
+
+    Returns a tuple (exit_editor, filename, dirty, message)."""
+    if not dirty:
+        return True, filename, dirty, None
+
+    h, w = stdscr.getmaxyx()
+    prompt = "Save changes before exiting? (y)es/(n)o/(c)ancel: "
+
+    stdscr.addstr(h-2, 0, prompt[: w - 1])
+    stdscr.clrtoeol()
+    stdscr.refresh()
+    curses.curs_set(1)
+    stdscr.timeout(-1)
+
+    while True:
+        ch = stdscr.get_wch()
+        if isinstance(ch, str):
+            ch = ch.lower()
+            if ch in ('y', 'n', 'c'):
+                break
+
+    stdscr.timeout(100)
+    stdscr.move(h-2, 0)
+    stdscr.clrtoeol()
+
+    if ch == 'y':
+        if not filename:
+            new_name = save_file_dialog(stdscr, filename)
+            if not new_name:
+                return False, filename, dirty, None
+            filename = new_name
+        try:
+            save_file(filename, buffer)
+            return True, filename, False, f"Saved: {filename}"
+        except Exception as e:
+            return False, filename, dirty, f"Save failed: {str(e)}"
+    elif ch == 'n':
+        return True, filename, dirty, None
+    else:
+        return False, filename, dirty, None
+
 def main(stdscr, filename=None):
     """Main editor loop."""
     curses.curs_set(1)
@@ -188,7 +231,6 @@ def main(stdscr, filename=None):
     cursor_x = 0
     scroll_offset = 0
     dirty = False
-    exit_confirm = False
     line_numbers = False
     status_message = (
         "Ctrl+X: Exit | Ctrl+Shift+S: Save | Ctrl+O: Open | "
@@ -251,13 +293,13 @@ def main(stdscr, filename=None):
         
         # Handle controls
         if key == 24:  # Ctrl+X
-            if dirty and not exit_confirm:
-                status_message = "Unsaved changes! Press Ctrl+X again to exit."
-                exit_confirm = True
-                continue
-            else:
+            exit_now, filename, dirty, msg = confirm_exit(stdscr, filename, buffer, dirty)
+            if msg:
+                status_message = msg
+            if exit_now:
                 break
-        exit_confirm = False
+            else:
+                continue
 
         if key == 19:  # Ctrl+Shift+S (Save)
             if filename:
